@@ -4,15 +4,23 @@ library(dplyr)
 library(ggplot2)
 
 ui <- fluidPage(
-    # this are the query inputs
-    textInput("name", "Nombre"),
-    numericInput("cycle", "Ciclo", 0),
-    numericInput("pass", "PASSWORD", 0),
-    # this is the query table
-    tableOutput("table"),
-    tableOutput("table2"),
-    plotOutput("plot1", click = "plot_click")
+
+    titlePanel("ChileLog App"),
+    sidebarLayout(
+        sidebarPanel(
+                                        # this are the query inputs
+        textInput("name", "Nombre", "Nicolas"),
+        numericInput("cycle", "Ciclo", 0),
+        numericInput("pass", "PASSWORD", 0),
+        selectInput("bloque", "Bloque", choices = list("A", "B", "C")),
+        uiOutput("table")
+    ),
+    mainPanel(
+        uiOutput("trainingLog")
+    )
+    )
 )
+
 
 server <- function(input, output)
 {
@@ -41,15 +49,14 @@ server <- function(input, output)
                          movements = movements,
                          weights = weights)
     toPlot[is.na(toPlot)] <- 0
-    #output$table2 <- renderTable({
-    #    data.frame(toPlot %>%
-    #               filter(Nombre == input$name) %>%
-    #               select(weights.values))
-    #})
-    output$plot1 <- renderPlot({
-        y <- toPlot %>% filter(Nombre == input$name) %>%
-            select(weights.values)
-        plot(unlist(y), type = "line")
+    ## output to numeric input in ui
+    output$trainingLog <- renderUI({
+        protocolo <- data.frame(gsProtocols %>%
+                           filter(Atleta == input$name & Bloque == input$bloque) %>%
+                           select(Protocolo))
+        lapply(1:length(protocolo[,1]), function(i){
+            numericInput("protocolo", toString(protocolo[i,1]), 0)
+        })
     })
 }
 

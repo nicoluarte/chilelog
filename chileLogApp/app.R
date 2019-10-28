@@ -2,6 +2,7 @@ library(shiny)
 library(googlesheets)
 library(dplyr)
 library(ggplot2)
+library(DT)
 
 ui <- fluidPage(
 
@@ -16,7 +17,9 @@ ui <- fluidPage(
         uiOutput("table")
     ),
     mainPanel(
-        uiOutput("trainingLog")
+        uiOutput("trainingLog"),
+        actionButton("log", "Registrar"),
+        dataTableOutput("obs")
     )
     )
 )
@@ -55,9 +58,56 @@ server <- function(input, output)
                            filter(Atleta == input$name & Bloque == input$bloque) %>%
                            select(Protocolo))
         lapply(1:length(protocolo[,1]), function(i){
-            numericInput("protocolo", toString(protocolo[i,1]), 0)
+            numericInput(paste0("protocolo", i), toString(protocolo[i,1]), 0)
         })
     })
+    ## process data vector to enter into database
+    output$obs <- renderDataTable({
+        protocolo <- data.frame(gsProtocols %>%
+                                filter(Atleta == input$name & Bloque == input$bloque) %>%
+                                select(Protocolo))
+        topSet <- sapply(1:length(protocolo[ , 1]), function(i){
+            input[[paste0("protocolo", i)]]
+        })
+        nombre <- replicate(length(protocolo[ , 1]), input$name)
+        ciclo <- replicate(length(protocolo[ , 1]), input$cycle)
+        bloque <- replicate(length(protocolo[ , 1]), input$bloque)
+        lift <- protocolo[ , 1]
+        logVector <- data.frame(
+            name = nombre,
+            ciclo = ciclo,
+            bloque = bloque,
+            lift = lift,
+            topSet = topSet
+        )
+        return(logVector)
+    })
+    writeTable <- reactive({
+        protocolo <- data.frame(gsProtocols %>%
+                                filter(Atleta == input$name & Bloque == input$bloque) %>%
+                                select(Protocolo))
+        topSet <- sapply(1:length(protocolo[ , 1]), function(i){
+            input[[paste0("protocolo", i)]]
+        })
+        nombre <- replicate(length(protocolo[ , 1]), input$name)
+        ciclo <- replicate(length(protocolo[ , 1]), input$cycle)
+        bloque <- replicate(length(protocolo[ , 1]), input$bloque)
+        lift <- protocolo[ , 1]
+        logVector <- data.frame(
+            name = nombre,
+            ciclo = ciclo,
+            bloque = bloque,
+            lift = lift,
+            topSet = topSet
+        )
+        return(logVector)
+    })
+
+    observeEvent(input$log, {
+        TT <- writeTable()
+        gs_add_row(gs, ws = "Registros", input = TT)
+    })
+
 }
 
 shinyApp(ui = ui, server = server)

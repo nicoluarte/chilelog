@@ -3,7 +3,6 @@ library(googlesheets)
 library(dplyr)
 library(ggplot2)
 library(DT)
-library(lubridate)
 
 ui <- fluidPage(
 
@@ -11,9 +10,9 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
                                         # this are the query inputs
-        textInput("name", "Nombre"),
-        numericInput("pass", "Contraseña", value = 0),
-        numericInput("cycle", "Ciclo", value = 0),
+        textInput("name", "Nombre", "Nicolas"),
+        numericInput("pass", "Contraseña", 0),
+        numericInput("cycle", "Ciclo", 0),
         selectInput("bloque", "Bloque", choices = list("A", "B", "C")),
         dateInput("date", label = "Fecha", value = Sys.Date())
     ),
@@ -26,7 +25,7 @@ ui <- fluidPage(
 )
 
 
-server <- function(input, output, session)
+server <- function(input, output)
 {
     # variable to hold which sheet we're going to use
     dataBase <- "power_log"
@@ -46,22 +45,27 @@ server <- function(input, output, session)
     })
     gsNumbers <- gs %>% gs_read(ws = "Registros")
     plans <- gs %>% gs_read(ws = "Codes")
+    names <- gsNumbers %>% select(Nombre) %>% c()
+    movements <- gsNumbers %>% select(grep("Mov*", names(gsNumbers), value = TRUE)) %>% stack()
+    weights <- gsNumbers %>% select(grep("Peso*", names(gsNumbers), value = TRUE)) %>% stack()
+    toPlot <- data.frame(names = names,
+                         movements = movements,
+                         weights = weights)
+    toPlot[is.na(toPlot)] <- 0
     ## output to numeric input in ui
     output$trainingLog <- renderUI({
         protocolo <- data.frame(gsProtocols %>%
-                           filter(Atleta == input$name & Bloque == input$bloque & Pass == input$pass) %>%
+                           filter(Atleta == input$name & Bloque == input$bloque) %>%
                            select(Protocolo))
         lapply(1:length(protocolo[,1]), function(i){
             numericInput(paste0("protocolo", i), toString(protocolo[i,1]), 0)
         })
     })
-    observe({
-        x <- plans %>%
-            filter(Atleta == input$name & Pass == input$pass) %>%
-            select(Ciclo_actual)
-        updateNumericInput(session, "cycle", value = x[[1]])
+    output$actualCycle <- rective({
+        as.numeric(plans %>%
+                   filter(Atleta == input$name & Pass = input$pass) %>%
+                   select(Ciclo_actual))
     })
-
     ## process data vector to enter into database
     # output$obs <- renderDataTable({
     #     protocolo <- data.frame(gsProtocols %>%
@@ -84,7 +88,6 @@ server <- function(input, output, session)
     #     return(logVector)
     # })
     writeTable <- reactive({
-        recordDate <- ymd(input$date)
         protocolo <- data.frame(gsProtocols %>%
                                 filter(Atleta == input$name & Bloque == input$bloque) %>%
                                 select(Protocolo))
@@ -95,16 +98,10 @@ server <- function(input, output, session)
         ciclo <- replicate(length(protocolo[ , 1]), input$cycle)
         bloque <- replicate(length(protocolo[ , 1]), input$bloque)
         lift <- protocolo[ , 1]
-        year <- replicate(length(protocolo[ , 1]), year(recordDate))
-        month <- replicate(length(protocolo[ , 1]), month(recordDate))
-        day <- replicate(length(protocolo[ , 1]), day(recordDate))
         logVector <- data.frame(
             name = nombre,
             ciclo = ciclo,
             bloque = bloque,
-            year = year,
-            month = month,
-            day = day,
             lift = lift,
             topSet = topSet
         )

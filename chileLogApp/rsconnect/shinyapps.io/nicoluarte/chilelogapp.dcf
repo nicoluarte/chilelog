@@ -5,6 +5,6 @@ account: nicoluarte
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1324723
-bundleId: 2504891
+bundleId: 2549135
 url: https://nicoluarte.shinyapps.io/chilelogapp/
-when: 1571225306.86841
+when: 1572378695.43515
